@@ -23,3 +23,12 @@ export function readF32LE(buf: ArrayLike<number>, offset: number): number {
   for (let i = 0; i < 4; i++) view.setUint8(i, buf[offset + i]!)
   return view.getFloat32(0, true)
 }
+
+export function readS16LE(buf: ArrayLike<number>, offset: number): number {
+  const v = readU16LE(buf, offset)
+  return v >= 0x8000 ? v - 0x10000 : v
+}
+
+export function readU32LE(buf: ArrayLike<number>, offset: number): number {
+  return (readU16LE(buf, offset) | (readU16LE(buf, offset + 2) << 16)) >>> 0
+}

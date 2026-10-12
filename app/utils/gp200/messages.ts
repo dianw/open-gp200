@@ -1,27 +1,29 @@
-import { HEADER, DIR_APP_TO_PEDAL, CMD_EVENT, CMD_PARAM, MODULES } from './constants'
+import { HEADER, CMD_QUERY, CMD_DATA, REC, MODULES } from './constants'
+import { encodeNibbles } from './nibble'
 
-const nib = (n: number) => [(n >> 4) & 0x0f, n & 0x0f]
+const u16 = (n: number) => [n & 0xff, (n >> 8) & 0xff]
+
+/** One TLV record: u16 type, u16 length, data. */
+export function record(type: number, data: number[]): number[] {
+  return [...u16(type), ...u16(data.length), ...data]
+}
+
+/** Single-chunk frame: header, CMD, payload length (7-bit split), offset 0, nibble-encoded payload. */
+export function frame(cmd: number, payload: number[]): number[] {
+  return [...HEADER, cmd, payload.length & 0x7f, payload.length >> 7, 0, 0, ...encodeNibbles(payload), 0xf7]
+}
+
+/** Address record: source 0 = edit buffer, 1 = stored copy. */
+const address = (source: number, slot: number) => record(REC.address, [...u16(source), ...u16(slot)])
 
 /** Ask the pedal for the current preset; reply is a "preset" event. Does not switch preset. */
 export function queryPreset(): number[] {
-  return [
-    ...HEADER, DIR_APP_TO_PEDAL, CMD_EVENT,
-    0, 0, 0, 0, 8, 1, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0x06, 0x0c, 0, 0,
-    0xf7,
-  ]
+  return frame(CMD_QUERY, record(REC.slot, [...u16(0), ...u16(0)]))
 }
 
 /** Request the live (edit buffer) dump. `preset` should be the current preset. */
 export function readActiveDump(preset: number): number[] {
-  return [
-    ...HEADER, DIR_APP_TO_PEDAL, CMD_PARAM,
-    0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0,
-    0, 0, 0, ...nib(preset & 0xff),
-    0, 0, 0, 1, 0, 0, 0, 4, 0, 0,
-    0x0f, 0x0f, 0x0f, 0x0f,
-    0, 0, 0, 0,
-    0xf7,
-  ]
+  return frame(CMD_QUERY, [...address(0, preset & 0xff), ...record(0x0001, [...u16(0xffff), ...u16(0)])])
 }
 
 /**
@@ -37,13 +39,19 @@ export function selectPreset(preset: number): number[][] {
   ]
 }
 
-export function toggleModule(module: number, on: boolean): number[] | null {
+/** Module on/off over SysEx, the only way to reach VOL (no CC). The trailing `9C 02` is what host writes carry. */
+export function toggleModuleSysex(module: number, on: boolean): number[] {
+  return frame(CMD_DATA, [...address(0, 0), ...record(REC.module, [module, on ? 1 : 0, 0x9c, 0x02])])
+}
+
+/** CC toggle where the module has one (confirmed on the device), SysEx otherwise. */
+export function toggleModule(module: number, on: boolean): number[] {
   const cc = MODULES[module]?.cc
-  if (cc == null) return null
+  if (cc == null) return toggleModuleSysex(module, on)
   return [0xb0, cc, on ? 127 : 0]
 }
 
-/** Probably "editor mode on": the last message the official app sent after its sync (advisor's guess). */
+/** Record 0x2002 with no data: the official app sends it 1 s after start. Meaning unknown. */
 export function handshake(): number[] {
-  return [...HEADER, DIR_APP_TO_PEDAL, 0x04, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0xf7]
+  return frame(CMD_QUERY, record(0x2002, []))
 }

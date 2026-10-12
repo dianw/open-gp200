@@ -10,8 +10,7 @@ const ordered = computed(() =>
     <button
       v-for="m in ordered" :key="m.index"
       class="mod" :class="{ on: m.on }"
-      :disabled="!gp.connected || !m.toggleable"
-      :title="m.toggleable ? '' : 'No CC known for this module'"
+      :disabled="!gp.connected"
       @click="gp.setModule(m.index, !m.on)"
     >
       <span class="led" />

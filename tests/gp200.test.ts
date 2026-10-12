@@ -4,14 +4,17 @@ import { encodeNibbles, decodeNibbles } from '../app/utils/gp200/nibble'
 import { parseMessage } from '../app/utils/gp200/parser'
 import { DumpAssembler, parseDump } from '../app/utils/gp200/dump'
 import { HEADER, presetLabel } from '../app/utils/gp200/constants'
-import { selectPreset, toggleModule, queryPreset, readActiveDump } from '../app/utils/gp200/messages'
+import { selectPreset, toggleModule, toggleModuleSysex, queryPreset, readActiveDump, handshake } from '../app/utils/gp200/messages'
+import { modelName } from '../app/utils/gp200/models'
 
 const fixture = (n: string) => new URL(`./fixtures/${n}`, import.meta.url)
 const bin = new Uint8Array(readFileSync(fixture('preset_108_active.bin')))
 // fixture chunks come from mido: no F0 / F7
 const chunks: number[][] = JSON.parse(readFileSync(fixture('preset_108_active.json'), 'utf8'))
 const withFraming = (c: number[]) => [0xf0, ...c, 0xf7]
-const msg = (dir: number, cmd: number, body: number[]) => [...HEADER, dir, cmd, ...body, 0xf7]
+// body here = everything after the CMD byte up to F7 (length low byte first)
+const msg = (cmd: number, lenLo: number, body: number[]) => [...HEADER, cmd, lenLo, ...body, 0xf7]
+const hex = (s: string) => s.split(' ').map(x => parseInt(x, 16))
 
 describe('nibbles', () => {
   it('round trips', () => {
@@ -40,6 +43,26 @@ describe('parser', () => {
     expect(e).toMatchObject({ type: 'param', module: 2, param: 0 })
     expect((e as { value: number }).value).toBe(60)
   })
+  it('module toggled, address + record shape', () => {
+    expect(parseMessage(toggleModuleSysex(10, false))).toEqual({ type: 'module', module: 10, on: false })
+  })
+  it('model changed on the pedal', () => {
+    // record 0x0016 { block 0, 0, 76 02, effect 0x03000009 Blues OD }
+    const e = parseMessage(hex('F0 21 25 7E 47 50 2D 32 12 0C 00 00 00 01 06 00 00 00 08 00 00 00 00 00 00 07 06 00 02 00 09 00 00 00 00 00 03 F7'))
+    expect(e).toEqual({ type: 'model', module: 0, effectId: 0x03000009 })
+  })
+  it('preset saved on the pedal', () => {
+    // captured on the LT: rename + save of 28-A
+    const raw = '00 00 00 00 03 02 00 01 04 00 00 06 0c 00 00 00 00 00 01 04 0f 06 08 06 01 07 09 06 0f 07 05 02 00 04 03 06 0c 06 05 06 01 06 0e 00 00 02 00 02 00 02 00'
+    const e = parseMessage(hex(`F0 21 25 7E 47 50 2D 32 12 18 ${raw} F7`))
+    expect(e).toEqual({ type: 'saved', preset: 108, name: 'Ohayou Clean' })
+  })
+  it('ignores footswitch acks and settings echoes', () => {
+    // model-change shape with a zero effect id
+    expect(parseMessage(hex('F0 21 25 7E 47 50 2D 32 12 0C 00 00 00 01 06 00 00 00 08 00 00 00 03 00 01 00 00 00 00 00 00 00 00 00 00 00 00 F7')).type).toBe('unknown')
+    // record 0x1008 with setting id 0x18 (FS mode)
+    expect(parseMessage(hex('F0 21 25 7E 47 50 2D 32 12 08 00 00 00 00 08 01 00 00 04 00 00 01 08 00 00 00 01 00 00 F7')).type).toBe('unknown')
+  })
   it('ignores foreign / short messages', () => {
     expect(parseMessage([0xf0, 1, 2, 0xf7]).type).toBe('unknown')
     expect(parseMessage(msg(0x12, 0x08, [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])).type).toBe('unknown')
@@ -62,7 +85,13 @@ describe('dump', () => {
     expect(d.preset).toBe(108)
     expect(d.name).toBe('Ohayou Clean')
     expect(d.modules.map(m => (m.on ? 1 : 0))).toEqual([0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1])
-    expect(d.modules[2]!.type).toBe(0x29)
+    expect(d.modules[2]!.effectId).toBe(0x03000029)
+    expect(d.modules.map(m => modelName(m.effectId))).toEqual([
+      'COMP', 'V-Wah', 'Plustortion', 'Dark Twin', 'Gate 1', 'Dark Twin', 'Guitar EQ 2',
+      'C-Chorus', 'Slapback', 'Amp Spring', 'Volume',
+    ])
+    expect(d.modules[10]!.params[0]).toBe(100)
+    expect(d).toMatchObject({ tempo: 0xfa, volume: 50, pan: 0 })
     expect(d.modules[2]!.params.slice(0, 6)).toEqual([50, 80, 50, 0, 1, 0])
     expect(d.order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   })
@@ -73,13 +102,21 @@ describe('messages', () => {
     expect(selectPreset(108)).toEqual([[0xb0, 0, 0], [0xc0, 108]])
     expect(selectPreset(160)).toEqual([[0xb0, 0, 1], [0xc0, 32]])
     expect(toggleModule(1, true)).toEqual([0xb0, 57, 127])
-    expect(toggleModule(10, true)).toBeNull()
+    expect(toggleModule(10, true)).toEqual(toggleModuleSysex(10, true))
     expect(presetLabel(108)).toBe('28-A')
   })
   it('builds requests', () => {
-    expect(queryPreset().length).toBe(8 + 2 + 19 + 1)
-    const r = readActiveDump(0x6c)
-    expect(r.slice(8, 10)).toEqual([0x11, 0x10])
-    expect(r.slice(10 + 15, 10 + 17)).toEqual([6, 0xc])
+    expect(queryPreset()).toEqual(msg(0x11, 0x08, [0, 0, 0, 0, 8, 1, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+    // the edit-buffer read confirmed on the device
+    expect(readActiveDump(0x6c)).toEqual(msg(0x11, 0x10, [
+      0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 6, 0xc,
+      0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0xf, 0xf, 0xf, 0xf, 0, 0, 0, 0,
+    ]))
+    expect(handshake()).toEqual(msg(0x11, 0x04, [0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0]))
+  })
+  it('builds the SysEx module toggle', () => {
+    expect(toggleModuleSysex(6, true)).toEqual(hex(
+      'F0 21 25 7E 47 50 2D 32 12 10 00 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00 00 01 05 00 00 00 04 00 00 00 06 00 01 09 0C 00 02 F7',
+    ))
   })
 })

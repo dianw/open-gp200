@@ -11,9 +11,8 @@ export interface ModuleState {
   index: number
   name: string
   on: boolean
-  toggleable: boolean
-  /** effect model id and display name, from the last dump */
-  type: number | null
+  /** effect id and display name, from the last dump */
+  effectId: number | null
   model: string
   params: number[]
 }
@@ -25,7 +24,7 @@ export const useGp200Store = defineStore('gp200', () => {
   const presetName = ref('')
   const order = ref<number[]>(MODULES.map(m => m.index))
   const modules = ref<ModuleState[]>(
-    MODULES.map(m => ({ index: m.index, name: m.name, on: false, toggleable: m.cc != null, type: null, model: '', params: [] })),
+    MODULES.map(m => ({ index: m.index, name: m.name, on: false, effectId: null, model: '', params: [] })),
   )
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -95,6 +94,15 @@ export const useGp200Store = defineStore('gp200', () => {
       case 'module':
         applyModule(e.module, e.on)
         break
+      case 'saved':
+        // saved on the pedal (e.g. after a rename): show the name now, re-read for anything else that changed
+        if (e.preset === preset.value) presetName.value = e.name
+        if (!syncing) scheduleRefresh()
+        break
+      case 'model':
+        // model changed on the pedal: re-read for its params
+        if (!syncing) scheduleRefresh()
+        break
       case 'dumpChunk':
         assembler.add(e.offset, e.bytes)
         break
@@ -145,8 +153,8 @@ export const useGp200Store = defineStore('gp200', () => {
           applyModule(m.index, m.on)
           const ms = modules.value.find(x => x.index === m.index)
           if (ms) {
-            ms.type = m.type
-            ms.model = modelName(m.index, m.type, m.category)
+            ms.effectId = m.effectId
+            ms.model = modelName(m.effectId)
             ms.params = m.params
           }
         }
@@ -166,9 +174,7 @@ export const useGp200Store = defineStore('gp200', () => {
   }
 
   function setModule(index: number, on: boolean) {
-    const msg = toggleModule(index, on)
-    if (!msg) return
-    midi.send(msg)
+    midi.send(toggleModule(index, on))
     applyModule(index, on) // optimistic
     // if the pedal doesn't confirm via SysEx, reconcile from a fresh dump
     toggleTimers.set(index, setTimeout(() => {
