@@ -1,4 +1,4 @@
-import { HEADER, CMD_QUERY, CMD_DATA, REC, MODULES } from './constants'
+import { HEADER, CMD_QUERY, CMD_DATA, REC, MODULES, PATCH_SETTING, TEMPO_MIN, TEMPO_MAX, CTRL_CC_BASE } from './constants'
 import { encodeNibbles } from './nibble'
 
 const u16 = (n: number) => [n & 0xff, (n >> 8) & 0xff]
@@ -49,6 +49,17 @@ export function toggleModule(module: number, on: boolean): number[] {
   const cc = MODULES[module]?.cc
   if (cc == null) return toggleModuleSysex(module, on)
   return [0xb0, cc, on ? 127 : 0]
+}
+
+/** Press CTRL footswitch 0..3 (CTRL 1..4), like tapping it on the pedal. */
+export function pressCtrl(ctrl: number): number[] {
+  return [0xb0, CTRL_CC_BASE + ctrl, 127]
+}
+
+/** Patch tempo of the active preset, in BPM (clamped to 40..250). Changes the edit buffer only, not flash. */
+export function setTempo(bpm: number): number[] {
+  const v = Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, Math.round(bpm)))
+  return frame(CMD_DATA, [...address(0, 0), ...record(REC.patchSetting, [...u16(PATCH_SETTING.tempo), ...u16(v)])])
 }
 
 /** Record 0x2002 with no data: the official app sends it 1 s after start. Meaning unknown. */

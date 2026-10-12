@@ -1,4 +1,4 @@
-import { HEADER, PAYLOAD_START, CMD_DATA, DUMP_SIZE, REC } from './constants'
+import { HEADER, PAYLOAD_START, CMD_DATA, DUMP_SIZE, REC, PATCH_SETTING } from './constants'
 import { decodeNibbles, readF32LE, readU16LE, readU32LE } from './nibble'
 
 export type Gp200Event =
@@ -7,6 +7,7 @@ export type Gp200Event =
   | { type: 'param'; module: number; param: number; value: number }
   | { type: 'model'; module: number; effectId: number }
   | { type: 'saved'; preset: number; name: string }
+  | { type: 'tempo'; bpm: number }
   | { type: 'dumpChunk'; offset: number; bytes: number[] }
   | { type: 'unknown'; raw: number[] }
 
@@ -87,6 +88,14 @@ export function parseMessage(data: ArrayLike<number>): Gp200Event {
       if (effectId !== 0) return { type: 'model', module: d[0]!, effectId }
       break
     }
+    case REC.tempo:
+      // { 2, value } after every preset change; matches the dump's tempo field
+      if (d.length >= 4 && readU16LE(d, 0) === 2) return { type: 'tempo', bpm: readU16LE(d, 2) }
+      break
+    case REC.patchSetting:
+      // in case the pedal echoes or reports a tempo write
+      if (d.length >= 4 && readU16LE(d, 0) === PATCH_SETTING.tempo) return { type: 'tempo', bpm: readU16LE(d, 2) }
+      break
     case REC.save:
       if (d.length >= 20) return { type: 'saved', preset: readU16LE(d, 0), name: readName(d.slice(4, 20)) }
       break

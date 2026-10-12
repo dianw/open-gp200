@@ -1,4 +1,4 @@
-import { DUMP_SIZE, DUMP_OFFSETS, MODULE_COUNT } from './constants'
+import { DUMP_SIZE, DUMP_OFFSETS, MODULE_COUNT, CTRL_FX_LOOP_BIT } from './constants'
 import { readU16LE, readS16LE, readU32LE, readF32LE } from './nibble'
 
 /** Collects dump chunks by offset into the full buffer. */
@@ -38,6 +38,15 @@ export interface DumpModule {
   params: number[]
 }
 
+export interface DumpCtrl {
+  index: number
+  /** saved switch position */
+  on: boolean
+  /** block numbers the switch toggles */
+  modules: number[]
+  fxLoop: boolean
+}
+
 export interface ParsedDump {
   preset: number
   name: string
@@ -52,6 +61,8 @@ export interface ParsedDump {
   order: number[]
   /** indexed by module number */
   modules: DumpModule[]
+  /** all 8 CTRL records; the LT uses the first 4 */
+  ctrls: DumpCtrl[]
 }
 
 const PARAM_COUNT = (DUMP_OFFSETS.moduleStride - 12) / 4
@@ -79,6 +90,15 @@ export function parseDump(buf: Uint8Array): ParsedDump {
   }
   modules.sort((a, b) => a.index - b.index)
 
+  const ctrls: DumpCtrl[] = []
+  for (let i = 0; i < 8; i++) {
+    const base = DUMP_OFFSETS.ctrl + i * DUMP_OFFSETS.ctrlStride
+    const mask = readU16LE(buf, base + 8)
+    const mods: number[] = []
+    for (let b = 0; b < MODULE_COUNT; b++) if (mask & (1 << b)) mods.push(b)
+    ctrls.push({ index: buf[base + 4]!, on: buf[base + 5] === 1, modules: mods, fxLoop: !!(mask & (1 << CTRL_FX_LOOP_BIT)) })
+  }
+
   return {
     preset: readU16LE(buf, DUMP_OFFSETS.preset),
     name: readString(buf, DUMP_OFFSETS.name, DUMP_OFFSETS.nameMaxLen),
@@ -89,5 +109,6 @@ export function parseDump(buf: Uint8Array): ParsedDump {
     style: readU16LE(buf, DUMP_OFFSETS.style),
     order,
     modules,
+    ctrls,
   }
 }

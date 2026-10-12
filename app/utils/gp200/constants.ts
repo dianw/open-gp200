@@ -15,6 +15,7 @@ export const PAYLOAD_START = HEADER.length + 5
 export const REC = {
   address: 0x0000, // { u16 source (0 = edit buffer, 1 = stored), u16 slot }
   param: 0x0005, // { u8 block, u8 param, u16 display value, u32 effect id, f32 value }
+  patchSetting: 0x0006, // { u16 target (PATCH_SETTING), s16 value }: live write to the active patch
   module: 0x0015, // { u8 block, u8 on, 2 bytes }
   model: 0x0016, // { u8 block, 3 bytes, u32 effect id }
   tempo: 0x1001, // { u16 2, u16 value } after every slot change; probably the patch tempo (unverified)
@@ -46,6 +47,18 @@ export const MODULES: readonly ModuleInfo[] = [
 
 export const MODULE_COUNT = MODULES.length
 
+/** Targets of record 0x0006. */
+export const PATCH_SETTING = { volume: 0, tempo: 1, pan: 6 } as const
+
+/** The LT has 4 CTRL footswitches (the protocol carries 8); CC 69..72 press CTRL 1..4. */
+export const CTRL_COUNT = 4
+export const CTRL_CC_BASE = 69
+/** CTRL mask bit 11; bits 0..10 are the blocks */
+export const CTRL_FX_LOOP_BIT = 11
+
+export const TEMPO_MIN = 40
+export const TEMPO_MAX = 250
+
 export const DUMP_SIZE = 1176
 export const DUMP_CHUNK_SIZE = 185
 
@@ -64,6 +77,9 @@ export const DUMP_OFFSETS = {
   order: 0x6c,
   modules: 0x78,
   moduleStride: 0x48,
+  /** 8 records of 12 bytes: type 0x000F header, u8 index, u8 state, 2 junk, u16 mask, 2 junk */
+  ctrl: 0x438,
+  ctrlStride: 12,
 } as const
 
 export const PRESET_COUNT = 256

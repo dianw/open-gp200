@@ -4,7 +4,8 @@ import { encodeNibbles, decodeNibbles } from '../app/utils/gp200/nibble'
 import { parseMessage } from '../app/utils/gp200/parser'
 import { DumpAssembler, parseDump } from '../app/utils/gp200/dump'
 import { HEADER, presetLabel } from '../app/utils/gp200/constants'
-import { selectPreset, toggleModule, toggleModuleSysex, queryPreset, readActiveDump, handshake } from '../app/utils/gp200/messages'
+import { selectPreset, toggleModule, toggleModuleSysex, queryPreset, readActiveDump, handshake, setTempo, pressCtrl } from '../app/utils/gp200/messages'
+import { tap, TAP_RESET_MS } from '../app/utils/gp200/tap'
 import { modelName } from '../app/utils/gp200/models'
 
 const fixture = (n: string) => new URL(`./fixtures/${n}`, import.meta.url)
@@ -57,6 +58,11 @@ describe('parser', () => {
     const e = parseMessage(hex(`F0 21 25 7E 47 50 2D 32 12 18 ${raw} F7`))
     expect(e).toEqual({ type: 'saved', preset: 108, name: 'Ohayou Clean' })
   })
+  it('tempo after a preset change (record 0x1001)', () => {
+    // { 2, 0xFA }: the same value as 28-A's dump tempo
+    const e = parseMessage(hex('F0 21 25 7E 47 50 2D 32 12 08 00 00 00 00 01 01 00 00 04 00 00 00 02 00 00 0F 0A 00 00 F7'))
+    expect(e).toEqual({ type: 'tempo', bpm: 250 })
+  })
   it('ignores footswitch acks and settings echoes', () => {
     // model-change shape with a zero effect id
     expect(parseMessage(hex('F0 21 25 7E 47 50 2D 32 12 0C 00 00 00 01 06 00 00 00 08 00 00 00 03 00 01 00 00 00 00 00 00 00 00 00 00 00 00 F7')).type).toBe('unknown')
@@ -94,6 +100,17 @@ describe('dump', () => {
     expect(d).toMatchObject({ tempo: 0xfa, volume: 50, pan: 0 })
     expect(d.modules[2]!.params.slice(0, 6)).toEqual([50, 80, 50, 0, 1, 0])
     expect(d.order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    // 28-A has no CTRL assignments
+    expect(d.ctrls.map(c => c.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+    expect(d.ctrls.every(c => !c.on && c.modules.length === 0 && !c.fxLoop)).toBe(true)
+  })
+  it('parses CTRL masks', () => {
+    const b = bin.slice()
+    // CTRL 2: saved on, DST + DLY + FX LOOP, junk in the high nibble
+    b[0x438 + 12 + 5] = 1
+    b[0x438 + 12 + 8] = 0x04
+    b[0x438 + 12 + 9] = 0xf9
+    expect(parseDump(b).ctrls[1]).toEqual({ index: 1, on: true, modules: [2, 8], fxLoop: true })
   })
 })
 
@@ -104,6 +121,8 @@ describe('messages', () => {
     expect(toggleModule(1, true)).toEqual([0xb0, 57, 127])
     expect(toggleModule(10, true)).toEqual(toggleModuleSysex(10, true))
     expect(presetLabel(108)).toBe('28-A')
+    expect(pressCtrl(0)).toEqual([0xb0, 69, 127])
+    expect(pressCtrl(3)).toEqual([0xb0, 72, 127])
   })
   it('builds requests', () => {
     expect(queryPreset()).toEqual(msg(0x11, 0x08, [0, 0, 0, 0, 8, 1, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
@@ -118,5 +137,32 @@ describe('messages', () => {
     expect(toggleModuleSysex(6, true)).toEqual(hex(
       'F0 21 25 7E 47 50 2D 32 12 10 00 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00 00 01 05 00 00 00 04 00 00 00 06 00 01 09 0C 00 02 F7',
     ))
+  })
+  it('builds the tempo write', () => {
+    // 120 BPM, record 0x0006 { 1, 120 } after the edit-buffer address (PROTOCOL-FACTS 2.4)
+    expect(setTempo(120)).toEqual(hex(
+      'F0 21 25 7E 47 50 2D 32 12 10 00 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00 00 00 06 00 00 00 04 00 00 00 01 00 00 07 08 00 00 F7',
+    ))
+    expect(setTempo(300)).toEqual(setTempo(250))
+    expect(setTempo(10)).toEqual(setTempo(40))
+    expect(parseMessage(setTempo(97))).toEqual({ type: 'tempo', bpm: 97 })
+  })
+})
+
+describe('tap tempo', () => {
+  const run = (times: number[]) => times.reduce<{ taps: number[]; bpm: number | null }>((r, t) => tap(r.taps, t), { taps: [], bpm: null })
+  it('needs two taps', () => {
+    expect(run([1000]).bpm).toBeNull()
+    expect(run([1000, 1500]).bpm).toBe(120)
+  })
+  it('averages recent intervals and follows changes', () => {
+    expect(run([0, 500, 1000, 1500]).bpm).toBe(120)
+    // 4-interval window: older 500 ms taps drop out
+    expect(run([0, 500, 1000, 1500, 2100, 2700, 3300, 3900]).bpm).toBe(100)
+  })
+  it('restarts after a pause and clamps', () => {
+    expect(run([0, 500, 500 + TAP_RESET_MS + 1]).bpm).toBeNull()
+    expect(run([0, 100]).bpm).toBe(250)
+    expect(run([0, 1900]).bpm).toBe(40)
   })
 })

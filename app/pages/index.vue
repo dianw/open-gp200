@@ -11,7 +11,9 @@ const gp = useGp200Store()
     </p>
     <ConnectionBar />
     <PresetPicker />
+    <TempoControl />
     <ModuleBoard />
+    <CtrlBar />
     <MidiLog />
   </main>
 </template>

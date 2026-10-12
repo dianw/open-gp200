@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
-import { MODULES, MODULE_COUNT, PRESET_COUNT } from '~/utils/gp200/constants'
-import { handshake, queryPreset, readActiveDump, selectPreset, toggleModule } from '~/utils/gp200/messages'
+import { MODULES, MODULE_COUNT, PRESET_COUNT, TEMPO_MAX, TEMPO_MIN, CTRL_COUNT } from '~/utils/gp200/constants'
+import { handshake, pressCtrl as ctrlMessage, queryPreset, readActiveDump, selectPreset, setTempo as tempoMessage, toggleModule } from '~/utils/gp200/messages'
 import { parseMessage, type Gp200Event } from '~/utils/gp200/parser'
-import { DumpAssembler, parseDump } from '~/utils/gp200/dump'
+import { DumpAssembler, parseDump, type DumpCtrl } from '~/utils/gp200/dump'
 import { modelName } from '~/utils/gp200/models'
 
 type Waiter = { pred: (e: Gp200Event) => boolean; resolve: (e: Gp200Event) => void }
@@ -22,10 +22,16 @@ export const useGp200Store = defineStore('gp200', () => {
 
   const preset = ref<number | null>(null)
   const presetName = ref('')
+  /** patch tempo in BPM */
+  const tempo = ref<number | null>(null)
   const order = ref<number[]>(MODULES.map(m => m.index))
   const modules = ref<ModuleState[]>(
     MODULES.map(m => ({ index: m.index, name: m.name, on: false, effectId: null, model: '', params: [] })),
   )
+  /** CTRL 1..4: assignment from the dump; `on` starts at the saved position and flips on our presses */
+  const ctrls = ref<DumpCtrl[]>([])
+  let ctrlPreset: number | null = null
+  let ctrlTimer: ReturnType<typeof setTimeout> | undefined
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -35,6 +41,11 @@ export const useGp200Store = defineStore('gp200', () => {
   let syncing = false
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
   const toggleTimers = new Map<number, ReturnType<typeof setTimeout>>()
+  // tempo writes go out at least 40 ms apart; only the latest pending value is sent
+  const WRITE_GAP_MS = 40
+  let lastTempoWrite = 0
+  let pendingTempo: number | null = null
+  let tempoTimer: ReturnType<typeof setTimeout> | undefined
 
   function waitFor<T extends Gp200Event['type']>(
     type: T,
@@ -92,6 +103,7 @@ export const useGp200Store = defineStore('gp200', () => {
         if (!syncing) scheduleRefresh()
         break
       case 'module':
+        clearTimeout(ctrlTimer)
         applyModule(e.module, e.on)
         break
       case 'saved':
@@ -102,6 +114,9 @@ export const useGp200Store = defineStore('gp200', () => {
       case 'model':
         // model changed on the pedal: re-read for its params
         if (!syncing) scheduleRefresh()
+        break
+      case 'tempo':
+        if (pendingTempo == null) tempo.value = e.bpm
         break
       case 'dumpChunk':
         assembler.add(e.offset, e.bytes)
@@ -148,6 +163,12 @@ export const useGp200Store = defineStore('gp200', () => {
 
         const d = parseDump(assembler.buf)
         presetName.value = d.name
+        if (pendingTempo == null) tempo.value = d.tempo
+        // the dump may only hold the saved CTRL position: keep our tracked one until the preset changes
+        const prev = new Map(ctrls.value.map(c => [c.index, c.on]))
+        const samePreset = ctrlPreset === p.preset
+        ctrls.value = d.ctrls.slice(0, CTRL_COUNT).map(c => ({ ...c, on: samePreset ? (prev.get(c.index) ?? c.on) : c.on }))
+        ctrlPreset = p.preset
         order.value = d.order
         for (const m of d.modules) {
           applyModule(m.index, m.on)
@@ -183,6 +204,35 @@ export const useGp200Store = defineStore('gp200', () => {
     }, 300))
   }
 
+  function flushTempo() {
+    tempoTimer = undefined
+    if (pendingTempo == null) return
+    midi.send(tempoMessage(pendingTempo))
+    pendingTempo = null
+    lastTempoWrite = Date.now()
+  }
+
+  function setTempo(bpm: number) {
+    if (!Number.isFinite(bpm)) return
+    const v = Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, Math.round(bpm)))
+    tempo.value = v // optimistic
+    pendingTempo = v
+    if (tempoTimer) return
+    const wait = lastTempoWrite + WRITE_GAP_MS - Date.now()
+    if (wait <= 0) flushTempo()
+    else tempoTimer = setTimeout(flushTempo, wait)
+  }
+
+  function pressCtrl(i: number) {
+    if (i < 0 || i >= CTRL_COUNT) return
+    midi.send(ctrlMessage(i))
+    const c = ctrls.value[i]
+    if (c) c.on = !c.on
+    // the pedal should report the module toggles; if it stays quiet, re-read the board
+    clearTimeout(ctrlTimer)
+    ctrlTimer = setTimeout(() => void refresh(), 300)
+  }
+
   async function connect() {
     await midi.connect()
     if (midi.connected.value) await refresh()
@@ -197,7 +247,7 @@ export const useGp200Store = defineStore('gp200', () => {
   return {
     ...midi,
     error: computed(() => error.value ?? midi.error.value),
-    preset, presetName, order, modules, loading,
-    connect, refresh, setPreset, setModule,
+    preset, presetName, tempo, order, modules, ctrls, loading,
+    connect, refresh, setPreset, setModule, setTempo, pressCtrl,
   }
 })
