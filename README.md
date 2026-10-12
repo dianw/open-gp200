@@ -1,75 +1,45 @@
-# Nuxt Minimal Starter
+# open-gp200
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+An open-source editor for the **Valeton GP-200LT** guitar multi-effects pedal that runs in your browser.
 
-## Setup
+Plug the pedal into your computer over USB, open the page, and you can see and control what the pedal is doing: which preset is loaded, which effects are on, which models they use, and the tempo. Changes you make on the pedal itself show up in the browser straight away, so the screen and the pedal stay in sync.
 
-Make sure to install dependencies:
+No install, no account, no server. The page talks to the pedal directly through your browser's MIDI support.
 
-```bash
-# npm
-npm install
+## What it can do
 
-# pnpm
-pnpm install
+- **Presets:** see the current preset and switch to any of the 256 slots.
+- **Effects:** see all 11 blocks (PRE, WAH, DST, AMP, NR, CAB, EQ, MOD, DLY, RVB, VOL) with the model each one uses, and turn them on or off.
+- **Tempo:** read and set the preset's BPM, or tap it in with a button or the T key.
+- **CTRL 1-4:** press the pedal's assignable CTRL switches from the screen (still being tested).
+- **Live sync:** footswitch presses, effect toggles, model changes and renames on the pedal update the page.
+- **MIDI log:** an optional panel that shows every message going back and forth, for the curious.
 
-# yarn
-yarn install
+## What's coming
 
-# bun
-bun install
-```
+The aim is a full editor, step by step:
 
-## Development Server
+1. Browse the names of every stored preset.
+2. Turn effect knobs live.
+3. Change effect models and reorder the signal chain.
+4. Save and rename presets.
 
-Start the development server on `http://localhost:3000`:
+## What you need
 
-```bash
-# npm
-npm run dev
+- A Valeton GP-200LT. It's tested on firmware 1.8.0. Other GP-200 models may partly work but haven't been tried.
+- A USB cable to your computer.
+- A browser with Web MIDI. **Brave** works well. Chrome on macOS has been seen to send messages to the pedal but never receive any, so the page can't follow the pedal there. Safari and Firefox don't support Web MIDI.
 
-# pnpm
-pnpm dev
+Allow MIDI access when the browser asks.
 
-# yarn
-yarn dev
+## Running it
 
-# bun
-bun run dev
-```
+The app isn't hosted anywhere yet. To run it on your own machine, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Production
+## Disclaimer
 
-Build the application for production:
+This is an independent project, not made by or affiliated with Valeton. Reading and switching presets is safe; features that write to the pedal's memory will be clearly marked when they arrive. Back up presets you care about with the official app.
 
-```bash
-# npm
-npm run build
+## License
 
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+[MIT](LICENSE)
