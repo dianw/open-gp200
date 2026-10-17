@@ -1,0 +1,117 @@
+// Generated from PROTOCOL-FACTS.md section 5 by tools/gen_effects.py. Do not edit by hand.
+// Models the official editor lists under RVB: effect id (dump block +8, u32 LE) -> model.
+
+import type { EffectModel } from './types'
+
+export const RVB_EFFECTS: Record<number, EffectModel> = {
+  0x0C000000: { name: "Room", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Pre Delay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000001: { name: "Hall", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Pre Delay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000002: { name: "Church", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Pre Delay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000003: { name: "Plate", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "High Damp", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000004: { name: "Spring", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Tone", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000006: { name: "N-Star", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000007: { name: "Deepsea", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000008: { name: "Sweet Space", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Pre Delay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Lo End", min: -50, max: 50, def: 0 },
+    { i: 4, name: "Hi End", min: -50, max: 50, def: 0 },
+    { i: 5, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000009: { name: "Shimmer", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 30 },
+    { i: 1, name: "Pre Delay", min: 0, max: 100, def: 50 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Lo End", min: -50, max: 50, def: 0 },
+    { i: 4, name: "Hi End", min: -50, max: 50, def: 0 },
+    { i: 5, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C00000B: { name: "Studio", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 25 },
+    { i: 1, name: "Pre Delay", min: 0, max: 300, def: 0 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Low Damp", min: 0, max: 100, def: 50 },
+    { i: 4, name: "Hi Damp", min: 0, max: 100, def: 50 },
+    { i: 5, name: "Mod", min: 0, max: 100, def: 50 },
+    { i: 6, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C00000C: { name: "Club", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 25 },
+    { i: 1, name: "Pre Delay", min: 0, max: 300, def: 0 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 70 },
+    { i: 3, name: "Low Damp", min: 0, max: 100, def: 50 },
+    { i: 4, name: "Hi Damp", min: 0, max: 100, def: 50 },
+    { i: 5, name: "Mod", min: 0, max: 100, def: 50 },
+    { i: 6, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C00000D: { name: "Concert", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 25 },
+    { i: 1, name: "Pre Delay", min: 0, max: 300, def: 100 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Low Damp", min: 0, max: 100, def: 50 },
+    { i: 4, name: "Hi Damp", min: 0, max: 100, def: 50 },
+    { i: 5, name: "Mod", min: 0, max: 100, def: 50 },
+    { i: 6, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C00000E: { name: "Arena", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 25 },
+    { i: 1, name: "Pre Delay", min: 0, max: 300, def: 100 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 70 },
+    { i: 3, name: "Low Damp", min: 0, max: 100, def: 50 },
+    { i: 4, name: "Hi Damp", min: 0, max: 100, def: 50 },
+    { i: 5, name: "Mod", min: 0, max: 100, def: 50 },
+    { i: 6, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000011: { name: "Amp Spring", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 25 },
+    { i: 1, name: "Pre Delay", min: 0, max: 300, def: 0 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Low Damp", min: 0, max: 100, def: 50 },
+    { i: 4, name: "Hi Damp", min: 0, max: 100, def: 50 },
+    { i: 5, name: "Mod", min: 0, max: 100, def: 50 },
+    { i: 6, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+  0x0C000012: { name: "Tube Spring", catalog: "RVB", params: [
+    { i: 0, name: "Mix", min: 0, max: 100, def: 25 },
+    { i: 1, name: "Pre Delay", min: 0, max: 300, def: 0 },
+    { i: 2, name: "Decay", min: 0, max: 100, def: 50 },
+    { i: 3, name: "Low Damp", min: 0, max: 100, def: 50 },
+    { i: 4, name: "Hi Damp", min: 0, max: 100, def: 50 },
+    { i: 5, name: "Mod", min: 0, max: 100, def: 50 },
+    { i: 6, name: "Trail", min: 0, max: 1, def: 0, options: ["OFF", "ON"] },
+  ] },
+}
