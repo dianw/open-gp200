@@ -8,6 +8,7 @@ import { selectPreset, toggleModule, toggleModuleSysex, queryPreset, readActiveD
 import { tap, TAP_RESET_MS } from '../app/utils/gp200/tap'
 import { modelName, modelsForBlock } from '../app/utils/gp200/models'
 import { EFFECTS, EFFECTS_BY_CATALOG } from '../app/utils/gp200/effects'
+import { describeMessage } from '../app/utils/gp200/describe'
 
 const fixture = (n: string) => new URL(`./fixtures/${n}`, import.meta.url)
 const bin = new Uint8Array(readFileSync(fixture('preset_108_active.bin')))
@@ -202,5 +203,59 @@ describe('chain layout', () => {
   it('splits send and return, including after the last block', () => {
     expect(show([0, 1, 2], 1, 3)).toEqual([0, 'SEND', 1, 2, 'RETURN'])
     expect(show([0, 1, 2], 3, 3)).toEqual([0, 1, 2, 'FX LOOP'])
+  })
+})
+
+describe('describeMessage', () => {
+  const field = (bytes: number[], name: string) => describeMessage(bytes).fields.find(f => f.name === name)
+
+  it('explains a VOL toggle over SysEx, byte by byte', () => {
+    const d = describeMessage(toggleModuleSysex(10, true))
+    expect(d.kind).toBe('sysex')
+    expect(d.summary).toBe('Module VOL on')
+    expect(d.fields.map(f => f.name)).toEqual([
+      'SysEx start', 'header', 'CMD', 'length', 'offset',
+      'record type', 'record length', 'source', 'slot',
+      'record type', 'record length', 'block', 'state', 'tail',
+      'SysEx end',
+    ])
+    const tail = field(toggleModuleSysex(10, true), 'tail')!
+    expect(tail).toMatchObject({ wire: '09 0C 00 02', decoded: '9C 02', meaning: 'host write marker (9C 02)' })
+    expect(field(toggleModuleSysex(10, true), 'CMD')!.meaning).toMatch(/^0x12/)
+  })
+
+  it('names models and queries', () => {
+    expect(describeMessage(setModel(0, 0x03000009)).summary).toBe(`Model PRE = ${modelName(0x03000009)}`)
+    expect(describeMessage(setTempo(120)).summary).toBe('Patch tempo = 120')
+    expect(describeMessage(queryPreset()).summary).toBe('Query current preset')
+    expect(describeMessage(readActiveDump(107)).summary).toBe('Read active dump')
+    expect(describeMessage(handshake()).summary).toBe('Query 0x2002 startup query (unknown)')
+  })
+
+  it('reads incoming preset changes', () => {
+    const body = [0, 0, 0, 0, 8, 1, 0, 0, 4, 0, 0, 0, 0, 0, 0, 6, 0xb, 0, 0]
+    expect(describeMessage(msg(0x12, 0x08, body)).summary).toBe(`Preset ${presetLabel(0x6b)}`)
+  })
+
+  it('explains CC, CTRL and Program Change, using the last bank select', () => {
+    const ctx = {}
+    const [cc0, pc] = selectPreset(200)
+    expect(describeMessage(cc0!, ctx).summary).toBe('Bank 1')
+    expect(describeMessage(pc!, ctx).summary).toBe(`Program 72 → ${presetLabel(200)}`)
+    expect(describeMessage(toggleModule(2, false)).summary).toBe('DST off (CC 49)')
+    expect(describeMessage(pressCtrl(1)).summary).toBe('CTRL 2 press (CC 70)')
+  })
+
+  it('annotates dump chunks', () => {
+    const first = describeMessage(withFraming(chunks[0]!))
+    expect(first.kind).toBe('dump')
+    expect(first.summary).toBe('Dump chunk 1/7 (bytes 0..184)')
+    expect(first.fields.find(f => f.name === 'name')!.meaning).toBe(`"${parseDump(bin).name}"`)
+    expect(first.fields.find(f => f.name === 'chain order')).toBeDefined()
+    for (const c of chunks) expect(describeMessage(withFraming(c)).kind).toBe('dump')
+  })
+
+  it('flags fragments instead of throwing', () => {
+    expect(describeMessage([0xf0, 0x21, 0x25]).kind).toBe('sysex?')
   })
 })

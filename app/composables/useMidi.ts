@@ -1,6 +1,8 @@
 export interface MidiLogEntry {
   dir: 'in' | 'out'
   hex: string
+  /** raw message bytes; absent for text notes */
+  bytes?: number[]
   t: number
 }
 
@@ -27,7 +29,7 @@ export function useMidi() {
   }
 
   function pushLog(dir: 'in' | 'out', data: ArrayLike<number>) {
-    log.value.push({ dir, hex: hex(data), t: Date.now() })
+    log.value.push({ dir, hex: hex(data), bytes: Array.from(data), t: Date.now() })
     if (log.value.length > 300) log.value.splice(0, log.value.length - 300)
   }
 
