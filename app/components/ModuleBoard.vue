@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { modelsForBlock } from '~/utils/gp200/models'
+import { cablePaths, type JackBox } from '~/utils/cables'
 import type { ModuleState } from '~/stores/gp200'
 
 const gp = useGp200Store()
@@ -22,34 +23,102 @@ function onModel(index: number, ev: Event) {
   gp.setModel(index, Number((ev.target as HTMLSelectElement).value))
 }
 
+/** pedal size in the chain, remembered per browser; 100% draws the pedals at BASE_ZOOM of their CSS size */
+const BASE_ZOOM = .8
+const ZOOM_KEY = 'gp200.chain.size'
+const ZOOMS = [80, 90, 100, 110, 120]
+const zoom = ref(100)
+onMounted(() => {
+  try {
+    const z = Number(localStorage.getItem(ZOOM_KEY))
+    if (ZOOMS.includes(z)) zoom.value = z
+  } catch { /* storage blocked: keep the default */ }
+})
+watch(zoom, z => {
+  try {
+    localStorage.setItem(ZOOM_KEY, String(z))
+  } catch { /* ignore */ }
+  nextTick(measure)
+})
+
 const color = (index: number) => ({ '--c': `var(--blk-${index})` })
+
+// cables: measured from where the pedals actually landed, so they follow every wrap
+const chainEl = ref<HTMLElement>()
+const cables = ref<string[]>([])
+const jacks = ref<{ x: number; y: number }[]>([])
+
+/** pedal jacks sit this far down the enclosure, between the knobs and the label plate */
+const JACK_AT = .42
+
+function measure() {
+  const root = chainEl.value
+  if (!root) return
+  const base = root.getBoundingClientRect()
+  const boxes: JackBox[] = []
+  const ends: number[] = []
+  const pins: { x: number; y: number }[] = []
+  for (const el of root.querySelectorAll<HTMLElement>('[data-jack]')) {
+    const r = el.getBoundingClientRect()
+    if (!r.width) continue // IN/OUT are hidden on phones
+    const pedal = el.dataset.jack === 'pedal'
+    const box = { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height, jack: 0 }
+    box.jack = box.y + box.h * (pedal ? JACK_AT : .5)
+    if (!pedal) ends.push(boxes.length)
+    boxes.push(box)
+    if (pedal) pins.push({ x: box.x, y: box.jack }, { x: box.x + box.w, y: box.jack })
+  }
+  // IN/OUT take the jack height of the pedal they plug into, so those cables run level
+  for (const i of ends) {
+    const next = boxes[i === 0 ? 1 : i - 1]
+    if (next && next.y < boxes[i]!.y + boxes[i]!.h && boxes[i]!.y < next.y + next.h) boxes[i]!.jack = next.jack
+  }
+  cables.value = cablePaths(boxes, parseFloat(getComputedStyle(root).columnGap) || 0)
+  jacks.value = pins
+}
+
+let observer: ResizeObserver | undefined
+onMounted(() => {
+  measure()
+  observer = new ResizeObserver(measure)
+  if (chainEl.value) observer.observe(chainEl.value)
+})
+onBeforeUnmount(() => observer?.disconnect())
+watch(ordered, () => nextTick(measure))
 </script>
 
 <template>
   <section class="panel">
-    <h2 class="panel-title">Signal chain</h2>
-    <div class="chain">
-      <span class="end">IN</span>
-      <div
+    <div class="head">
+      <h2 class="panel-title">Signal chain</h2>
+      <label class="zoom">
+        <span class="sr-only">Pedal size</span>
+        <select v-model.number="zoom" title="Pedal size">
+          <option v-for="z in ZOOMS" :key="z" :value="z">{{ z }}%</option>
+        </select>
+      </label>
+    </div>
+    <div ref="chainEl" class="chain">
+      <svg class="cables" aria-hidden="true">
+        <g v-for="(d, i) in cables" :key="i">
+          <path class="cable" :d="d" />
+          <path class="cable-sheen" :d="d" />
+        </g>
+        <rect v-for="(j, i) in jacks" :key="`j${i}`" class="jack" :x="j.x - 3" :y="j.y - 6" width="6" height="12" rx="1.5" />
+      </svg>
+      <span class="end" data-jack="end">IN</span>
+      <Stompbox
         v-for="t in ordered" :key="t.index"
-        class="blk" :class="{ on: t.on, selected: t.index === selected }" :style="color(t.index)"
-      >
-        <button
-          class="power"
-          :disabled="!gp.connected"
-          :aria-pressed="t.on"
-          :aria-label="`${t.name} ${t.on ? 'on' : 'off'}`"
-          :title="t.on ? 'On: click to bypass' : 'Bypassed: click to turn on'"
-          @click="gp.setModule(t.index, !t.on)"
-        >
-          <span class="led" :class="{ pending: gp.pending.has(t.index) }" />
-        </button>
-        <button class="body" :aria-pressed="t.index === selected" @click="selected = t.index">
-          <span class="name">{{ t.name }}</span>
-          <span class="model" :title="t.model">{{ t.model || '—' }}</span>
-        </button>
-      </div>
-      <span class="end">OUT</span>
+        data-jack="pedal"
+        :style="{ zoom: BASE_ZOOM * zoom / 100 }"
+        :m="t"
+        :selected="t.index === selected"
+        :pending="gp.pending.has(t.index)"
+        :disabled="!gp.connected"
+        @select="selected = t.index"
+        @toggle="gp.setModule(t.index, !t.on)"
+      />
+      <span class="end" data-jack="end">OUT</span>
     </div>
 
     <div v-if="current" class="detail" :style="color(current.index)">
@@ -76,69 +145,50 @@ const color = (index: number) => ({ '--c': `var(--blk-${index})` })
           <option v-for="o in options(current)" :key="o.id" :value="o.id">{{ o.name }}</option>
         </select>
       </label>
+      <ParamKnobs :m="current" />
     </div>
   </section>
 </template>
 
 <style scoped>
-.chain { display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; }
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.zoom select { font-size: .75rem; padding: .1rem .3rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.chain {
+  --chain-gap: 1.75rem;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.75rem var(--chain-gap);
+  padding: .25rem .5rem .5rem;
+}
+.cables {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px var(--shadow));
+}
+.cable, .cable-sheen { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.cable { stroke: var(--cable); stroke-width: 6; }
+.cable-sheen { stroke: var(--cable-hi); stroke-width: 1.5; opacity: .7; transform: translateY(-1px); }
+.jack { fill: var(--metal-lo); stroke: var(--cable); stroke-width: 1; }
 .end {
-  align-self: center;
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  padding: 0 .35rem;
   font-size: .7rem;
   font-weight: 700;
   letter-spacing: .08em;
   color: var(--muted);
 }
-
-.blk {
-  position: relative;
-  flex: 1 1 5.25rem;
-  min-width: 5.25rem;
-  max-width: 8rem;
-  display: flex;
-  flex-direction: column;
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-top: 3px solid color-mix(in srgb, var(--c) 35%, var(--border));
-  border-radius: var(--radius-sm);
-  opacity: .7;
-  transition: opacity .15s, border-color .15s;
-}
-/* the wire between blocks */
-.blk::before {
-  content: '';
-  position: absolute;
-  left: calc(-.5rem - 1px);
-  top: 50%;
-  width: .5rem;
-  height: 2px;
-  background: var(--border-strong);
-}
-.blk.on { opacity: 1; border-top-color: var(--c); }
-.blk.selected { border-color: var(--c); box-shadow: 0 0 0 1px var(--c); }
-
-.blk button { background: none; border: 0; border-radius: 0; }
-.blk button:hover:not(:disabled) { background: var(--raised-hover); }
-.power { padding: .45rem 0 .2rem; display: flex; justify-content: center; }
-.body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .15rem;
-  padding: .2rem .35rem .5rem;
-  min-width: 0;
-}
-.name { font-weight: 700; font-size: .9rem; }
-.model {
-  max-width: 100%;
-  font-size: .7rem;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.on .led { background: var(--c); box-shadow: 0 0 8px var(--c); }
+/* puts the label's middle level with the pedals' jacks (JACK_AT) */
+.end::before { content: ''; flex: none; height: calc(42% - .42rem); }
 
 .detail {
   margin-top: var(--gap);
@@ -151,12 +201,14 @@ const color = (index: number) => ({ '--c': `var(--blk-${index})` })
 }
 .detail-head { display: flex; align-items: center; gap: .6rem; }
 .swatch { width: .8rem; height: .8rem; border-radius: 3px; background: var(--c); }
+.on .led { background: var(--c); box-shadow: 0 0 8px var(--c); }
 .state { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; }
 .field { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--muted); }
 .field select { color: var(--text); min-width: 14rem; max-width: 100%; }
 
 @media (max-width: 760px) {
-  .end, .blk::before { display: none; }
+  .end { display: none; }
+  .chain { --chain-gap: 1rem; row-gap: 1.25rem; }
   .field { flex-wrap: wrap; width: 100%; }
   .field select { min-width: 0; width: 100%; }
 }

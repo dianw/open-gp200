@@ -122,6 +122,12 @@ export const useGp200Store = defineStore('gp200', () => {
         if (e.preset === preset.value) presetName.value = e.name
         if (!syncing) scheduleRefresh()
         break
+      case 'param': {
+        // knob turned on the pedal
+        const m = modules.value.find(x => x.index === e.module)
+        if (m) m.params[e.param] = e.value
+        break
+      }
       case 'model': {
         if (modelWrite && modelWrite.module === e.module && modelWrite.effectId === e.effectId && Date.now() < modelWrite.until) break
         // model changed on the pedal: show it now, re-read for its params

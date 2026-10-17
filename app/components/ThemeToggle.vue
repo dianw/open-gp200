@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { mode, cycle } = useTheme()
-const LABEL = { system: 'System theme', light: 'Light theme', dark: 'Dark theme' } as const
-const ICON = { system: '◐', light: '☀', dark: '☾' } as const
+const LABEL = { system: 'System theme', light: 'Grey theme', dark: 'Dark theme' } as const
+const ICON = { system: '◐', light: '☁', dark: '☾' } as const
 </script>
 
 <template>

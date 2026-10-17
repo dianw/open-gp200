@@ -27,18 +27,33 @@
   --switch-hi: #4a4d53; /* footswitch highlight */
   --shadow: #0009;
 
+  /* stompbox parts (Stompbox.vue) */
+  --pedal-plate: #141518;
+  --pedal-plate-text: #f1f1f1;
+  --pedal-ink: #fff;
+  --pedal-screw: #0005;
+  --pedal-led: #ff3b30;
+  --knob-hi: #5a5d63;
+  --knob-lo: #111214;
+  --knob-mark: #f4f4f4;
+  --metal-hi: #e6e8eb;
+  --metal-lo: #8a8f96;
+  --cable: #3b3e44;
+  --cable-hi: #80848c;
+
   /* block colors, by block id */
-  --blk-0: #b388ff; /* PRE */
+  /* hues follow the official app's pedal colors, in this palette's tones */
+  --blk-0: #5b8def; /* PRE */
   --blk-1: #ffd54f; /* WAH */
-  --blk-2: #ff8a3d; /* DST */
-  --blk-3: #ef5350; /* AMP */
-  --blk-4: #90a4ae; /* NR */
-  --blk-5: #bc8f6f; /* CAB */
-  --blk-6: #4dd0b5; /* EQ */
-  --blk-7: #4fa3ff; /* MOD */
-  --blk-8: #4dd0e1; /* DLY */
-  --blk-9: #7986cb; /* RVB */
-  --blk-10: #e0e0e0; /* VOL */
+  --blk-2: #ef5350; /* DST */
+  --blk-3: #7a5f4b; /* AMP */
+  --blk-4: #cfd8dc; /* NR */
+  --blk-5: #4b5058; /* CAB */
+  --blk-6: #2ec4a5; /* EQ */
+  --blk-7: #4dd0e1; /* MOD */
+  --blk-8: #d94a7a; /* DLY */
+  --blk-9: #ff8a3d; /* RVB */
+  --blk-10: #7c6cf0; /* VOL */
 
   --radius: 8px;
   --radius-sm: 6px;
@@ -46,44 +61,25 @@
   --mono: ui-monospace, Menlo, monospace;
 }
 
-/* data-theme is set on <html> before first paint (nuxt.config.ts) and by useTheme() */
+/* data-theme is set on <html> before first paint (nuxt.config.ts) and by useTheme().
+   "light" is the graphite grey theme: it overrides the surfaces and inherits the rest
+   (block colors, LCD, pedal parts) from the dark palette above. */
 :root[data-theme="light"] {
-  color-scheme: light;
+  --bg: #2f3136;
+  --panel: #3b3e44;
+  --raised: #474a51;
+  --raised-hover: #52565d;
+  --border: #565a61;
+  --border-strong: #6d7179;
 
-  --bg: #f3f4f6;
-  --panel: #ffffff;
-  --raised: #eef0f3;
-  --raised-hover: #e2e5ea;
-  --border: #d9dce1;
-  --border-strong: #b9bec6;
+  --text: #f3f3f3;
+  --muted: #b6bac2;
 
-  --text: #1b1d21;
-  --muted: #5d636d;
-
-  --accent: #d35400;
-  --on: #1e9e55;
-  --ctrl: #1f78c1;
-  --danger: #c0392b;
-  --led-off: #c9cdd3;
-  --on-text: #fff;
-  --dump-text: #4f6b6b;
-  --lcd-bg: #c9d8b6;
-  --lcd-text: #1f2d16;
-  --lcd-glow: transparent;
-  --switch-hi: #ffffff;
-  --shadow: #0003;
-
-  --blk-0: #7c4dff;
-  --blk-1: #b38600;
-  --blk-2: #e0601a;
-  --blk-3: #d32f2f;
-  --blk-4: #607d8b;
-  --blk-5: #8d6040;
-  --blk-6: #00897b;
-  --blk-7: #1e6fd9;
-  --blk-8: #00838f;
-  --blk-9: #3f51b5;
-  --blk-10: #616161;
+  --led-off: #5c6067;
+  --switch-hi: #6a6e75;
+  --shadow: #0007;
+  --cable: #23252a;
+  --cable-hi: #6d7178;
 }
 
 * { box-sizing: border-box; }
