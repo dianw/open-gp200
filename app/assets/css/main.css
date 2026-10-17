@@ -131,3 +131,15 @@ button:disabled, select:disabled, input:disabled { opacity: .45; cursor: default
 @keyframes led-pulse { from { opacity: 1; } to { opacity: .35; } }
 
 .err { color: var(--danger); }
+
+kbd {
+  font-family: var(--mono);
+  font-size: .75em;
+  padding: .05rem .35rem;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+  white-space: nowrap;
+}

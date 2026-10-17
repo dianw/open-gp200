@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CTRL_COUNT, MODULES } from '~/utils/gp200/constants'
+import { CTRL_KEYS } from '~/utils/shortcuts'
 
 const gp = useGp200Store()
 const ctrls = computed(() =>
@@ -27,8 +28,10 @@ const ctrls = computed(() =>
           :disabled="!gp.connected"
           :aria-pressed="c.on"
           :aria-label="`CTRL ${c.i + 1} ${c.on ? 'on' : 'off'}`"
+          :title="`CTRL ${c.i + 1} (key ${CTRL_KEYS[c.i]})`"
           @click="gp.pressCtrl(c.i)"
         >{{ c.i + 1 }}</button>
+        <kbd aria-hidden="true">{{ CTRL_KEYS[c.i] }}</kbd>
         <div class="chips">
           <span v-for="ch in c.chips" :key="ch.key" class="chip" :style="{ '--c': ch.color }">{{ ch.name }}</span>
           <span v-if="!c.chips.length" class="none">unassigned</span>

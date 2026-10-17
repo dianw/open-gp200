@@ -1,6 +1,7 @@
 <script setup lang="ts">
 useHead({ title: 'GP-200LT Controller' })
 const gp = useGp200Store()
+const { helpOpen } = useShortcuts()
 </script>
 
 <template>
@@ -10,7 +11,10 @@ const gp = useGp200Store()
       <PresetDisplay class="display" />
       <div class="right">
         <TempoControl />
-        <ThemeToggle />
+        <div class="tools">
+          <button class="keys" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" @click="helpOpen = true">?</button>
+          <ThemeToggle />
+        </div>
       </div>
     </div>
     <div class="progress" :class="{ on: gp.loading }" />
@@ -25,6 +29,7 @@ const gp = useGp200Store()
     <CtrlBar class="panel" />
     <MidiLog class="panel" />
   </main>
+  <ShortcutHelp v-if="helpOpen" @close="helpOpen = false" />
 </template>
 
 <style scoped>
@@ -44,7 +49,9 @@ const gp = useGp200Store()
   align-items: center;
   gap: var(--gap);
 }
-.right { justify-self: end; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem; }
+.right { justify-self: end; display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: .5rem; }
+.tools { display: flex; gap: .5rem; }
+.keys { width: 2.2rem; padding: .4rem 0; line-height: 1; font-weight: 700; }
 .progress { height: 2px; background: transparent; }
 .progress.on {
   background: linear-gradient(90deg, transparent, var(--accent), transparent) 0 0 / 40% 100% no-repeat;
@@ -64,6 +71,6 @@ const gp = useGp200Store()
 @media (max-width: 760px) {
   .top-inner { grid-template-columns: 1fr; justify-items: center; }
   .display { order: -1; }
-  .right { justify-self: center; }
+  .right { justify-self: center; flex-wrap: wrap; }
 }
 </style>

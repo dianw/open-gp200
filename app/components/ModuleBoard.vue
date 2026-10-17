@@ -2,6 +2,7 @@
 import { modelsForBlock } from '~/utils/gp200/models'
 import { cablePaths, type JackBox } from '~/utils/cables'
 import type { ModuleState } from '~/stores/gp200'
+import { BLOCK_KEYS } from '~/utils/shortcuts'
 
 const gp = useGp200Store()
 const ordered = computed(() =>
@@ -108,13 +109,14 @@ watch(ordered, () => nextTick(measure))
       </svg>
       <span class="end" data-jack="end">IN</span>
       <Stompbox
-        v-for="t in ordered" :key="t.index"
+        v-for="(t, pos) in ordered" :key="t.index"
         data-jack="pedal"
         :style="{ zoom: BASE_ZOOM * zoom / 100 }"
         :m="t"
         :selected="t.index === selected"
         :pending="gp.pending.has(t.index)"
         :disabled="!gp.connected"
+        :hotkey="BLOCK_KEYS[pos]"
         @select="selected = t.index"
         @toggle="gp.setModule(t.index, !t.on)"
       />

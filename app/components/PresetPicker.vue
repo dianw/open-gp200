@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BANK_COUNT, SLOTS } from '~/utils/gp200/constants'
+import { SLOT_KEYS } from '~/utils/shortcuts'
 
 const gp = useGp200Store()
 const bank = ref(1)
@@ -10,7 +11,7 @@ watch(() => gp.preset, p => { if (p != null) bank.value = Math.floor(p / 4) + 1 
   <section>
     <h2 class="panel-title">Preset</h2>
     <div class="pick">
-      <select v-model.number="bank" aria-label="Bank">
+      <select v-model.number="bank" aria-label="Bank" title="Bank (↑ ↓ keys)">
         <option v-for="b in BANK_COUNT" :key="b" :value="b">Bank {{ b }}</option>
       </select>
       <button
@@ -18,6 +19,7 @@ watch(() => gp.preset, p => { if (p != null) bank.value = Math.floor(p / 4) + 1 
         class="slot"
         :disabled="!gp.connected"
         :class="{ active: gp.preset === (bank - 1) * 4 + i }"
+        :title="`Slot ${s} (key ${SLOT_KEYS[i]}; ← → step through presets)`"
         @click="gp.setPreset((bank - 1) * 4 + i)"
       >{{ s }}</button>
     </div>

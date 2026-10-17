@@ -7,6 +7,8 @@ const props = defineProps<{
   selected: boolean
   pending: boolean
   disabled: boolean
+  /** keyboard shortcut shown in a corner */
+  hotkey?: string
 }>()
 const emit = defineEmits<{ toggle: []; select: [] }>()
 
@@ -69,6 +71,7 @@ const style = computed(() => ({ '--c': `var(--blk-${props.m.index})` }))
     >
       <span class="cap" />
     </button>
+    <kbd v-if="hotkey" class="hotkey" aria-hidden="true">{{ hotkey }}</kbd>
   </div>
 </template>
 
@@ -97,6 +100,7 @@ const style = computed(() => ({ '--c': `var(--blk-${props.m.index})` }))
   transition: filter .15s, transform .15s;
 }
 .pedal.on { filter: none; }
+.hotkey { position: absolute; right: 16px; bottom: 6px; opacity: .8; }
 .pedal.selected { outline: 2px solid var(--text); outline-offset: 3px; }
 .pedal button { background: none; border: 0; padding: 0; color: inherit; }
 .face {
