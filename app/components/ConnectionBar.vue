@@ -3,18 +3,18 @@ const gp = useGp200Store()
 </script>
 
 <template>
-  <header class="bar">
-    <span class="dot" :class="{ on: gp.connected }" />
-    <span>{{ gp.connected ? `Connected: ${gp.portName}` : 'Not connected' }}</span>
+  <div class="bar">
+    <span class="led" :class="{ on: gp.connected }" />
+    <span class="status" :title="gp.portName ?? undefined">{{ gp.connected ? gp.portName : 'Not connected' }}</span>
     <button v-if="!gp.connected" @click="gp.connect()">Connect</button>
-    <button v-else :disabled="gp.loading" @click="gp.refresh()">Refresh</button>
+    <button v-else :disabled="gp.loading" title="Re-read the preset from the pedal" @click="gp.refresh()">Refresh</button>
     <span v-if="gp.error" class="err">{{ gp.error }}</span>
-  </header>
+  </div>
 </template>
 
 <style scoped>
-.bar { display: flex; gap: .75rem; align-items: center; padding: .5rem 0; }
-.dot { width: .75rem; height: .75rem; border-radius: 50%; background: #888; }
-.dot.on { background: #2ecc71; }
-.err { color: #e74c3c; }
+.bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; min-width: 0; }
+.led.on { background: var(--on); box-shadow: 0 0 6px var(--on); }
+.status { color: var(--muted); font-size: .85rem; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.err { font-size: .85rem; }
 </style>

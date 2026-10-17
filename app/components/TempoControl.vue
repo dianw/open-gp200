@@ -37,15 +37,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 <template>
   <section class="tempo">
-    <span class="title">Tempo</span>
-    <button :disabled="!gp.connected || gp.tempo == null" @click="step(-1)">−</button>
+    <label class="title" for="tempo-bpm">Tempo</label>
+    <button :disabled="!gp.connected || gp.tempo == null" aria-label="Tempo down" @click="step(-1)">−</button>
     <input
-      v-model.number="draft" type="number" :min="TEMPO_MIN" :max="TEMPO_MAX"
+      id="tempo-bpm" v-model.number="draft" type="number" :min="TEMPO_MIN" :max="TEMPO_MAX"
       :disabled="!gp.connected || gp.tempo == null"
       @change="commit" @keydown.enter="($event.target as HTMLInputElement).blur()"
     >
-    <span>BPM</span>
-    <button :disabled="!gp.connected || gp.tempo == null" @click="step(1)">+</button>
+    <span class="unit">BPM</span>
+    <button :disabled="!gp.connected || gp.tempo == null" aria-label="Tempo up" @click="step(1)">+</button>
     <button class="tap" :disabled="!gp.connected" title="Tap (or press T)" @click="onTap">
       <span v-if="gp.connected && gp.tempo" :key="`${beat}-${gp.tempo}`" class="beat" :style="beatStyle" />
       <span class="label">TAP</span>
@@ -54,12 +54,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
-.tempo { display: flex; align-items: center; gap: .5rem; margin: 1rem 0; }
-.title { font-weight: 600; margin-right: .5rem; }
-input { width: 4.5rem; font-size: 1.25rem; text-align: center; background: #2a2a2a; color: inherit; border: 1px solid #555; border-radius: 6px; padding: .3rem; }
-.tap { position: relative; overflow: hidden; min-width: 5rem; font-weight: 700; margin-left: 1rem; }
+.tempo { display: flex; align-items: center; gap: .4rem; }
+.title { font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: .25rem; }
+input { width: 4.2rem; font-size: 1.15rem; text-align: center; font-family: var(--mono); }
+.unit { color: var(--muted); font-size: .85rem; }
+.tap { position: relative; overflow: hidden; min-width: 4.5rem; font-weight: 700; margin-left: .5rem; }
 .label { position: relative; }
-.beat { position: absolute; inset: 0; background: #e67e22; animation: beat linear infinite; pointer-events: none; }
+.beat { position: absolute; inset: 0; background: var(--accent); animation: beat linear infinite; pointer-events: none; }
 @keyframes beat {
   0%, 50% { opacity: .9; }
   60%, 100% { opacity: 0; }

@@ -70,7 +70,7 @@ watch(() => gp.log.length, async () => {
 
 <template>
   <details class="log">
-    <summary>Raw MIDI log ({{ gp.log.length }})</summary>
+    <summary class="panel-title">MIDI log ({{ gp.log.length }})</summary>
     <div class="bar">
       <div class="seg">
         <button :class="{ active: view === 'table' }" @click="view = 'table'">Table</button>
@@ -129,28 +129,30 @@ watch(() => gp.log.length, async () => {
 </template>
 
 <style scoped>
+summary { cursor: pointer; margin: 0; }
+.log[open] summary { margin-bottom: .5rem; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: .5rem 0; font-size: .85rem; }
 .seg { display: inline-flex; }
 .seg button { border-radius: 0; }
 .seg button:first-child { border-radius: 6px 0 0 6px; }
 .seg button:last-child { border-radius: 0 6px 6px 0; }
-.seg button.active { background: #e67e22; color: #111; }
+.seg button.active, .seg button.active:hover { background: var(--accent); border-color: var(--accent); color: var(--on-text); }
 .scroll { max-height: 24rem; overflow: auto; }
 pre { margin: 0; font-size: .75rem; }
 table { border-collapse: collapse; width: 100%; font-size: .75rem; }
-th { text-align: left; position: sticky; top: 0; background: #1e1e1e; padding: .2rem .4rem; border-bottom: 1px solid #555; }
+th { text-align: left; position: sticky; top: 0; background: var(--panel); padding: .2rem .4rem; border-bottom: 1px solid var(--border-strong); }
 td { padding: .15rem .4rem; vertical-align: top; }
-.mono { font-family: ui-monospace, Menlo, monospace; }
+.mono { font-family: var(--mono); }
 .num { text-align: right; white-space: nowrap; }
-.msg { cursor: pointer; border-bottom: 1px solid #2c2c2c; }
-.msg:hover { background: #2a2a2a; }
-.msg.open { background: #333; }
-.msg.note { color: #888; cursor: default; }
-.msg.dump { color: #9aa; }
-.msg.in .dir { color: #6cf; }
-.msg.out .dir { color: #e67e22; }
-.detail > td { padding: .25rem .4rem .6rem 1.5rem; background: #181818; }
+.msg { cursor: pointer; border-bottom: 1px solid var(--border); }
+.msg:hover { background: var(--raised); }
+.msg.open { background: var(--raised-hover); }
+.msg.note { color: var(--muted); cursor: default; }
+.msg.dump { color: var(--dump-text); }
+.msg.in .dir { color: var(--ctrl); }
+.msg.out .dir { color: var(--accent); }
+.detail > td { padding: .25rem .4rem .6rem 1.5rem; background: var(--bg); }
 .fields th { position: static; background: none; }
-.fields td { border-bottom: 1px solid #262626; }
+.fields td { border-bottom: 1px solid var(--border); }
 .wire { max-width: 22rem; word-break: break-all; }
 </style>

@@ -36,6 +36,8 @@ export const useGp200Store = defineStore('gp200', () => {
   let ctrlPreset: number | null = null
   let ctrlTimer: ReturnType<typeof setTimeout> | undefined
   const loading = ref(false)
+  /** blocks with an unconfirmed optimistic toggle or model change */
+  const pending = ref(new Set<number>())
   const error = ref<string | null>(null)
 
   const assembler = new DumpAssembler()
@@ -86,6 +88,7 @@ export const useGp200Store = defineStore('gp200', () => {
   function applyModule(index: number, on: boolean) {
     const m = modules.value.find(x => x.index === index)
     if (m) m.on = on
+    pending.value.delete(index)
     const t = toggleTimers.get(index)
     if (t) {
       clearTimeout(t)
@@ -199,6 +202,8 @@ export const useGp200Store = defineStore('gp200', () => {
       } catch (e) {
         error.value = (e as Error).message
       } finally {
+        // the dump is the truth now (or the read failed and nothing will confirm)
+        pending.value.clear()
         syncing = false
         loading.value = false
       }
@@ -214,6 +219,7 @@ export const useGp200Store = defineStore('gp200', () => {
   function setModule(index: number, on: boolean) {
     midi.send(toggleModule(index, on))
     applyModule(index, on) // optimistic
+    pending.value.add(index)
     // if the pedal doesn't confirm via SysEx, reconcile from a fresh dump
     toggleTimers.set(index, setTimeout(() => {
       toggleTimers.delete(index)
@@ -245,6 +251,7 @@ export const useGp200Store = defineStore('gp200', () => {
     if (!m || m.effectId === effectId) return
     m.effectId = effectId // optimistic
     m.model = modelName(effectId)
+    pending.value.add(index)
     const send = () => {
       midi.send(modelMessage(index, effectId))
       lastWrite = Date.now()
@@ -282,7 +289,7 @@ export const useGp200Store = defineStore('gp200', () => {
   return {
     ...midi,
     error: computed(() => error.value ?? midi.error.value),
-    preset, presetName, tempo, order, fxSend, fxReturn, modules, ctrls, loading,
+    preset, presetName, tempo, order, fxSend, fxReturn, modules, ctrls, loading, pending,
     connect, refresh, setPreset, setModule, setModel, setTempo, pressCtrl,
   }
 })

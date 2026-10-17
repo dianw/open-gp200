@@ -1,0 +1,137 @@
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #0f1012;
+  --panel: #17181b;
+  --raised: #222428;
+  --raised-hover: #2b2e33;
+  --border: #34373d;
+  --border-strong: #4a4e56;
+
+  /* text */
+  --text: #ececec;
+  --muted: #9a9ea6;
+
+  /* state */
+  --accent: #e67e22;
+  --on: #2ecc71;
+  --ctrl: #3498db;
+  --danger: #e74c3c;
+  --led-off: #3a3d42;
+  --on-text: #000;      /* text on an --on / --accent fill */
+  --dump-text: #99aaaa; /* dump chunks in the MIDI log */
+  --lcd-bg: #0b1a12;
+  --lcd-text: #7dffb0;
+  --lcd-glow: color-mix(in srgb, var(--lcd-text) 50%, transparent);
+  --switch-hi: #4a4d53; /* footswitch highlight */
+  --shadow: #0009;
+
+  /* block colors, by block id */
+  --blk-0: #b388ff; /* PRE */
+  --blk-1: #ffd54f; /* WAH */
+  --blk-2: #ff8a3d; /* DST */
+  --blk-3: #ef5350; /* AMP */
+  --blk-4: #90a4ae; /* NR */
+  --blk-5: #bc8f6f; /* CAB */
+  --blk-6: #4dd0b5; /* EQ */
+  --blk-7: #4fa3ff; /* MOD */
+  --blk-8: #4dd0e1; /* DLY */
+  --blk-9: #7986cb; /* RVB */
+  --blk-10: #e0e0e0; /* VOL */
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --gap: .75rem;
+  --mono: ui-monospace, Menlo, monospace;
+}
+
+/* data-theme is set on <html> before first paint (nuxt.config.ts) and by useTheme() */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --raised: #eef0f3;
+  --raised-hover: #e2e5ea;
+  --border: #d9dce1;
+  --border-strong: #b9bec6;
+
+  --text: #1b1d21;
+  --muted: #5d636d;
+
+  --accent: #d35400;
+  --on: #1e9e55;
+  --ctrl: #1f78c1;
+  --danger: #c0392b;
+  --led-off: #c9cdd3;
+  --on-text: #fff;
+  --dump-text: #4f6b6b;
+  --lcd-bg: #c9d8b6;
+  --lcd-text: #1f2d16;
+  --lcd-glow: transparent;
+  --switch-hi: #ffffff;
+  --shadow: #0003;
+
+  --blk-0: #7c4dff;
+  --blk-1: #b38600;
+  --blk-2: #e0601a;
+  --blk-3: #d32f2f;
+  --blk-4: #607d8b;
+  --blk-5: #8d6040;
+  --blk-6: #00897b;
+  --blk-7: #1e6fd9;
+  --blk-8: #00838f;
+  --blk-9: #3f51b5;
+  --blk-10: #616161;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button, select, input {
+  font: inherit;
+  color: inherit;
+  background: var(--raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+button, select { padding: .4rem .8rem; cursor: pointer; }
+input { padding: .3rem .5rem; }
+button:hover:not(:disabled), select:hover:not(:disabled) { background: var(--raised-hover); }
+button:disabled, select:disabled, input:disabled { opacity: .45; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--gap);
+}
+.panel-title {
+  margin: 0 0 .5rem;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.led {
+  display: inline-block;
+  flex: none;
+  width: .7rem;
+  height: .7rem;
+  border-radius: 50%;
+  background: var(--led-off);
+}
+.led.pending { animation: led-pulse .6s ease-in-out infinite alternate; }
+@keyframes led-pulse { from { opacity: 1; } to { opacity: .35; } }
+
+.err { color: var(--danger); }
