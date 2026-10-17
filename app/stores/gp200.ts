@@ -4,6 +4,7 @@ import { handshake, pressCtrl as ctrlMessage, queryPreset, readActiveDump, selec
 import { parseMessage, type Gp200Event } from '~/utils/gp200/parser'
 import { DumpAssembler, parseDump, type DumpCtrl } from '~/utils/gp200/dump'
 import { modelName } from '~/utils/gp200/models'
+import { diffSnapshot, takeSnapshot, type PresetSnapshot } from '~/utils/gp200/snapshot'
 
 type Waiter = { pred: (e: Gp200Event) => boolean; resolve: (e: Gp200Event) => void }
 
@@ -39,6 +40,11 @@ export const useGp200Store = defineStore('gp200', () => {
   /** blocks with an unconfirmed optimistic toggle or model change */
   const pending = ref(new Set<number>())
   const error = ref<string | null>(null)
+  /** the preset as first read after selecting it (or after a save on the pedal): what Reset goes back to */
+  const baseline = shallowRef<PresetSnapshot | null>(null)
+  const baselinePreset = ref<number | null>(null)
+  let rebaseline = false
+  const resetting = ref(false)
 
   const assembler = new DumpAssembler()
   const waiters = new Set<Waiter>()
@@ -120,6 +126,7 @@ export const useGp200Store = defineStore('gp200', () => {
       case 'saved':
         // saved on the pedal (e.g. after a rename): show the name now, re-read for anything else that changed
         if (e.preset === preset.value) presetName.value = e.name
+        rebaseline = true
         if (!syncing) scheduleRefresh()
         break
       case 'param': {
@@ -205,6 +212,11 @@ export const useGp200Store = defineStore('gp200', () => {
             ms.params = m.params
           }
         }
+        if (rebaseline || baselinePreset.value !== p.preset) {
+          baseline.value = takeSnapshot({ tempo: tempo.value, order: order.value, modules: modules.value })
+          baselinePreset.value = p.preset
+          rebaseline = false
+        }
       } catch (e) {
         error.value = (e as Error).message
       } finally {
@@ -281,6 +293,39 @@ export const useGp200Store = defineStore('gp200', () => {
     ctrlTimer = setTimeout(() => void refresh(), 300)
   }
 
+  /** Edits since the preset was loaded: block toggles, models, params (incl. knob turns on the pedal), tempo, chain order. */
+  const changes = computed(() => {
+    if (!baseline.value || baselinePreset.value !== preset.value) return []
+    return diffSnapshot(baseline.value, { tempo: tempo.value, order: order.value, modules: modules.value })
+  })
+
+  /**
+   * Undo the edits: re-select the preset so the pedal reloads it from flash, re-read it, then write back
+   * whatever is still off (toggles, models, tempo) in case the pedal ignores a PC for the active preset.
+   */
+  async function resetPreset() {
+    const p = baselinePreset.value
+    const base = baseline.value
+    if (p == null || !base || p !== preset.value || resetting.value) return
+    resetting.value = true
+    try {
+      for (const m of selectPreset(p)) midi.send(m)
+      await waitFor('preset', 500, e => e.preset === p).catch(() => {})
+      clearTimeout(refreshTimer)
+      ctrlPreset = null // back to the saved CTRL positions
+      await refresh()
+      for (const c of changes.value) {
+        if (c.kind === 'on') setModule(c.module, c.from)
+        else if (c.kind === 'model' && c.from != null) setModel(c.module, c.from)
+        else if (c.kind === 'tempo' && c.from != null) setTempo(c.from)
+        else continue
+        await new Promise(r => setTimeout(r, WRITE_GAP_MS + 10))
+      }
+    } finally {
+      resetting.value = false
+    }
+  }
+
   async function connect() {
     await midi.connect()
     if (midi.connected.value) await refresh()
@@ -295,7 +340,7 @@ export const useGp200Store = defineStore('gp200', () => {
   return {
     ...midi,
     error: computed(() => error.value ?? midi.error.value),
-    preset, presetName, tempo, order, fxSend, fxReturn, modules, ctrls, loading, pending,
-    connect, refresh, setPreset, setModule, setModel, setTempo, pressCtrl,
+    preset, presetName, tempo, order, fxSend, fxReturn, modules, ctrls, loading, pending, changes, resetting,
+    connect, refresh, setPreset, setModule, setModel, setTempo, pressCtrl, resetPreset,
   }
 })
