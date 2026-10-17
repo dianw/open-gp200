@@ -2,6 +2,7 @@ import { HEADER, CMD_QUERY, CMD_DATA, REC, MODULES, PATCH_SETTING, TEMPO_MIN, TE
 import { encodeNibbles } from './nibble'
 
 const u16 = (n: number) => [n & 0xff, (n >> 8) & 0xff]
+const u32 = (n: number) => [...u16(n & 0xffff), ...u16((n >>> 16) & 0xffff)]
 
 /** One TLV record: u16 type, u16 length, data. */
 export function record(type: number, data: number[]): number[] {
@@ -60,6 +61,14 @@ export function pressCtrl(ctrl: number): number[] {
 export function setTempo(bpm: number): number[] {
   const v = Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, Math.round(bpm)))
   return frame(CMD_DATA, [...address(0, 0), ...record(REC.patchSetting, [...u16(PATCH_SETTING.tempo), ...u16(v)])])
+}
+
+/**
+ * Change the model of a block (0 PRE .. 10 VOL) in the edit buffer, not flash. `76 02` is what host writes carry.
+ * Send it before the block's params and give the new algorithm about 400 ms to load.
+ */
+export function setModel(block: number, effectId: number): number[] {
+  return frame(CMD_DATA, [...address(0, 0), ...record(REC.model, [block, 0, 0x76, 0x02, ...u32(effectId)])])
 }
 
 /** Record 0x2002 with no data: the official app sends it 1 s after start. Meaning unknown. */

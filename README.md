@@ -28,7 +28,7 @@ The aim is a full editor, step by step:
 
 - A Valeton GP-200LT. It's tested on firmware 1.8.0. Other GP-200 models may partly work but haven't been tried.
 - A USB cable to your computer.
-- A browser with Web MIDI. **Brave** works well. Chrome on macOS has been seen to send messages to the pedal but never receive any, so the page can't follow the pedal there. Safari and Firefox don't support Web MIDI.
+- A Chromium-based browser with Web MIDI (Chrome, Edge, Brave). Safari and Firefox don't support Web MIDI.
 
 Allow MIDI access when the browser asks.
 

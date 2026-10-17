@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { MODULES, MODULE_COUNT, PRESET_COUNT, TEMPO_MAX, TEMPO_MIN, CTRL_COUNT } from '~/utils/gp200/constants'
-import { handshake, pressCtrl as ctrlMessage, queryPreset, readActiveDump, selectPreset, setTempo as tempoMessage, toggleModule } from '~/utils/gp200/messages'
+import { handshake, pressCtrl as ctrlMessage, queryPreset, readActiveDump, selectPreset, setModel as modelMessage, setTempo as tempoMessage, toggleModule } from '~/utils/gp200/messages'
 import { parseMessage, type Gp200Event } from '~/utils/gp200/parser'
 import { DumpAssembler, parseDump, type DumpCtrl } from '~/utils/gp200/dump'
 import { modelName } from '~/utils/gp200/models'
@@ -25,6 +25,9 @@ export const useGp200Store = defineStore('gp200', () => {
   /** patch tempo in BPM */
   const tempo = ref<number | null>(null)
   const order = ref<number[]>(MODULES.map(m => m.index))
+  /** FX-loop send / return positions (see `chainLayout`) */
+  const fxSend = ref(4)
+  const fxReturn = ref(4)
   const modules = ref<ModuleState[]>(
     MODULES.map(m => ({ index: m.index, name: m.name, on: false, effectId: null, model: '', params: [] })),
   )
@@ -41,11 +44,16 @@ export const useGp200Store = defineStore('gp200', () => {
   let syncing = false
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
   const toggleTimers = new Map<number, ReturnType<typeof setTimeout>>()
-  // tempo writes go out at least 40 ms apart; only the latest pending value is sent
+  // SysEx writes go out at least 40 ms apart; for tempo only the latest pending value is sent
   const WRITE_GAP_MS = 40
-  let lastTempoWrite = 0
+  let lastWrite = 0
   let pendingTempo: number | null = null
   let tempoTimer: ReturnType<typeof setTimeout> | undefined
+  // our last model write, so its echo isn't taken for a change made on the pedal
+  let modelWrite: { module: number; effectId: number; until: number } | null = null
+  let modelTimer: ReturnType<typeof setTimeout> | undefined
+  // the new algorithm needs ~400 ms to load before the dump shows its params
+  const MODEL_SETTLE_MS = 500
 
   function waitFor<T extends Gp200Event['type']>(
     type: T,
@@ -111,10 +119,17 @@ export const useGp200Store = defineStore('gp200', () => {
         if (e.preset === preset.value) presetName.value = e.name
         if (!syncing) scheduleRefresh()
         break
-      case 'model':
-        // model changed on the pedal: re-read for its params
+      case 'model': {
+        if (modelWrite && modelWrite.module === e.module && modelWrite.effectId === e.effectId && Date.now() < modelWrite.until) break
+        // model changed on the pedal: show it now, re-read for its params
+        const m = modules.value.find(x => x.index === e.module)
+        if (m) {
+          m.effectId = e.effectId
+          m.model = modelName(e.effectId)
+        }
         if (!syncing) scheduleRefresh()
         break
+      }
       case 'tempo':
         if (pendingTempo == null) tempo.value = e.bpm
         break
@@ -170,6 +185,8 @@ export const useGp200Store = defineStore('gp200', () => {
         ctrls.value = d.ctrls.slice(0, CTRL_COUNT).map(c => ({ ...c, on: samePreset ? (prev.get(c.index) ?? c.on) : c.on }))
         ctrlPreset = p.preset
         order.value = d.order
+        fxSend.value = d.send
+        fxReturn.value = d.return
         for (const m of d.modules) {
           applyModule(m.index, m.on)
           const ms = modules.value.find(x => x.index === m.index)
@@ -209,7 +226,7 @@ export const useGp200Store = defineStore('gp200', () => {
     if (pendingTempo == null) return
     midi.send(tempoMessage(pendingTempo))
     pendingTempo = null
-    lastTempoWrite = Date.now()
+    lastWrite = Date.now()
   }
 
   function setTempo(bpm: number) {
@@ -218,9 +235,27 @@ export const useGp200Store = defineStore('gp200', () => {
     tempo.value = v // optimistic
     pendingTempo = v
     if (tempoTimer) return
-    const wait = lastTempoWrite + WRITE_GAP_MS - Date.now()
+    const wait = lastWrite + WRITE_GAP_MS - Date.now()
     if (wait <= 0) flushTempo()
     else tempoTimer = setTimeout(flushTempo, wait)
+  }
+
+  function setModel(index: number, effectId: number) {
+    const m = modules.value.find(x => x.index === index)
+    if (!m || m.effectId === effectId) return
+    m.effectId = effectId // optimistic
+    m.model = modelName(effectId)
+    const send = () => {
+      midi.send(modelMessage(index, effectId))
+      lastWrite = Date.now()
+      modelWrite = { module: index, effectId, until: lastWrite + MODEL_SETTLE_MS + 100 }
+      // read the new params (and catch a rejected change) once the algorithm has loaded
+      clearTimeout(modelTimer)
+      modelTimer = setTimeout(() => void refresh(), MODEL_SETTLE_MS)
+    }
+    const wait = lastWrite + WRITE_GAP_MS - Date.now()
+    if (wait <= 0) send()
+    else setTimeout(send, wait)
   }
 
   function pressCtrl(i: number) {
@@ -247,7 +282,7 @@ export const useGp200Store = defineStore('gp200', () => {
   return {
     ...midi,
     error: computed(() => error.value ?? midi.error.value),
-    preset, presetName, tempo, order, modules, ctrls, loading,
-    connect, refresh, setPreset, setModule, setTempo, pressCtrl,
+    preset, presetName, tempo, order, fxSend, fxReturn, modules, ctrls, loading,
+    connect, refresh, setPreset, setModule, setModel, setTempo, pressCtrl,
   }
 })

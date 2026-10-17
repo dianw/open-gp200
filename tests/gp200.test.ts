@@ -2,11 +2,12 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { encodeNibbles, decodeNibbles } from '../app/utils/gp200/nibble'
 import { parseMessage } from '../app/utils/gp200/parser'
-import { DumpAssembler, parseDump } from '../app/utils/gp200/dump'
+import { DumpAssembler, parseDump, chainLayout } from '../app/utils/gp200/dump'
 import { HEADER, presetLabel } from '../app/utils/gp200/constants'
-import { selectPreset, toggleModule, toggleModuleSysex, queryPreset, readActiveDump, handshake, setTempo, pressCtrl } from '../app/utils/gp200/messages'
+import { selectPreset, toggleModule, toggleModuleSysex, queryPreset, readActiveDump, handshake, setTempo, pressCtrl, setModel } from '../app/utils/gp200/messages'
 import { tap, TAP_RESET_MS } from '../app/utils/gp200/tap'
-import { modelName } from '../app/utils/gp200/models'
+import { modelName, modelsForBlock } from '../app/utils/gp200/models'
+import { EFFECTS, EFFECTS_BY_CATALOG } from '../app/utils/gp200/effects'
 
 const fixture = (n: string) => new URL(`./fixtures/${n}`, import.meta.url)
 const bin = new Uint8Array(readFileSync(fixture('preset_108_active.bin')))
@@ -100,6 +101,7 @@ describe('dump', () => {
     expect(d).toMatchObject({ tempo: 0xfa, volume: 50, pan: 0 })
     expect(d.modules[2]!.params.slice(0, 6)).toEqual([50, 80, 50, 0, 1, 0])
     expect(d.order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    expect([d.send, d.return]).toEqual([4, 4])
     // 28-A has no CTRL assignments
     expect(d.ctrls.map(c => c.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
     expect(d.ctrls.every(c => !c.on && c.modules.length === 0 && !c.fxLoop)).toBe(true)
@@ -164,5 +166,41 @@ describe('tap tempo', () => {
     expect(run([0, 500, 500 + TAP_RESET_MS + 1]).bpm).toBeNull()
     expect(run([0, 100]).bpm).toBe(250)
     expect(run([0, 1900]).bpm).toBe(40)
+  })
+})
+
+describe('model change', () => {
+  it('builds the captured PRE -> Blues OD write', () => {
+    expect(setModel(0, 0x03000009)).toEqual(hex('F0 21 25 7E 47 50 2D 32 12 14 00 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00 00 01 06 00 00 00 08 00 00 00 00 00 00 07 06 00 02 00 09 00 00 00 00 00 03 F7'))
+  })
+  it('parses its own write as a model event', () => {
+    expect(parseMessage(setModel(9, 0x0c000011))).toEqual({ type: 'model', module: 9, effectId: 0x0c000011 })
+  })
+})
+
+describe('effect tables', () => {
+  it('splits all models by catalog', () => {
+    expect(Object.keys(EFFECTS)).toHaveLength(305)
+    for (const [cat, models] of Object.entries(EFFECTS_BY_CATALOG))
+      for (const m of Object.values(models)) expect(m.catalog).toBe(cat)
+  })
+  it('lists models per block', () => {
+    const ids = (b: number) => modelsForBlock(b).map(m => m.id)
+    expect(ids(0)).toEqual(expect.arrayContaining([0x03000009, 0x00000000]))
+    expect(ids(5).some(id => id >>> 16 === 0x0a10)).toBe(false)
+    expect(ids(3).some(id => id >>> 24 === 0x0f)).toBe(false)
+    for (let b = 0; b <= 10; b++) expect(ids(b).length).toBeGreaterThan(0)
+  })
+})
+
+describe('chain layout', () => {
+  const show = (order: number[], s: number, r: number) =>
+    chainLayout(order, s, r).map(i => (i.kind === 'loop' ? i.label : i.index))
+  it('puts the FX loop after the first n blocks (27-B Mesa Rock, read live)', () => {
+    expect(show([1, 2, 3, 4, 0, 5, 6, 7, 8, 9, 10], 4, 4)).toEqual([1, 2, 3, 4, 'FX LOOP', 0, 5, 6, 7, 8, 9, 10])
+  })
+  it('splits send and return, including after the last block', () => {
+    expect(show([0, 1, 2], 1, 3)).toEqual([0, 'SEND', 1, 2, 'RETURN'])
+    expect(show([0, 1, 2], 3, 3)).toEqual([0, 1, 2, 'FX LOOP'])
   })
 })

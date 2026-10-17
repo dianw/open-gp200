@@ -59,6 +59,9 @@ export interface ParsedDump {
   style: number
   /** module numbers in signal-chain order */
   order: number[]
+  /** FX-loop send / return position 1..11: n = after the first n blocks of `order` (send <= return) */
+  send: number
+  return: number
   /** indexed by module number */
   modules: DumpModule[]
   /** all 8 CTRL records; the LT uses the first 4 */
@@ -76,6 +79,24 @@ function readString(buf: Uint8Array, offset: number, maxLen: number): string {
     s += String.fromCharCode(c)
   }
   return s
+}
+
+export type ChainItem = { kind: 'module'; index: number } | { kind: 'loop'; label: 'FX LOOP' | 'SEND' | 'RETURN' }
+
+/** The chain as the pedal shows it: the blocks in order, with the FX loop at its send/return positions. */
+export function chainLayout(order: number[], send: number, ret: number): ChainItem[] {
+  const clamp = (n: number) => Math.min(order.length, Math.max(0, n))
+  const s = clamp(send)
+  const r = clamp(Math.max(ret, send))
+  const items: ChainItem[] = []
+  order.forEach((index, pos) => {
+    if (pos === s) items.push({ kind: 'loop', label: s === r ? 'FX LOOP' : 'SEND' })
+    if (pos === r && r !== s) items.push({ kind: 'loop', label: 'RETURN' })
+    items.push({ kind: 'module', index })
+  })
+  if (s === order.length) items.push({ kind: 'loop', label: s === r ? 'FX LOOP' : 'SEND' })
+  if (r === order.length && r !== s) items.push({ kind: 'loop', label: 'RETURN' })
+  return items
 }
 
 export function parseDump(buf: Uint8Array): ParsedDump {
@@ -108,6 +129,8 @@ export function parseDump(buf: Uint8Array): ParsedDump {
     pan: readS16LE(buf, DUMP_OFFSETS.pan),
     style: readU16LE(buf, DUMP_OFFSETS.style),
     order,
+    send: buf[DUMP_OFFSETS.send]!,
+    return: buf[DUMP_OFFSETS.return]!,
     modules,
     ctrls,
   }
