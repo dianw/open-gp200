@@ -4,6 +4,8 @@ An open-source editor for the **Valeton GP-200LT** guitar multi-effects pedal th
 
 Plug the pedal into your computer over USB, open the page, and you can see and control what the pedal is doing: which preset is loaded, which effects are on, which models they use, and the tempo. Changes you make on the pedal itself show up in the browser straight away, so the screen and the pedal stay in sync.
 
+**Try it: https://dianw.github.io/open-gp200/**
+
 No install, no account, no server. The page talks to the pedal directly through your browser's MIDI support.
 
 ## What it can do
@@ -34,7 +36,9 @@ Allow MIDI access when the browser asks.
 
 ## Running it
 
-The app isn't hosted anywhere yet. To run it on your own machine, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Open **https://dianw.github.io/open-gp200/** in a supported browser with the pedal plugged in.
+
+To run it on your own machine instead, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Disclaimer
 
