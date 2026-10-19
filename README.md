@@ -6,6 +6,8 @@ Plug the pedal into your computer over USB, open the page, and you can see and c
 
 **Try it: https://dianw.github.io/open-gp200/**
 
+![open-gp200 connected to a GP-200LT: preset display, tempo, the signal chain drawn as pedals, the selected amp's knobs, and the CTRL switches](docs/screenshot.webp)
+
 No install, no account, no server. The page talks to the pedal directly through your browser's MIDI support.
 
 ## What it can do

@@ -29,6 +29,10 @@ const { helpOpen } = useShortcuts()
     <CtrlBar class="panel" />
     <MidiLog class="panel" />
   </main>
+  <footer class="foot">
+    open-gp200 · MIT ·
+    <a href="https://github.com/dianw/open-gp200" target="_blank" rel="noopener">Source on GitHub</a>
+  </footer>
   <ShortcutHelp v-if="helpOpen" @close="helpOpen = false" />
 </template>
 
@@ -67,6 +71,16 @@ const { helpOpen } = useShortcuts()
   flex-direction: column;
   gap: 1rem;
 }
+
+.foot {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1rem 1.5rem;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--muted);
+}
+.foot a { color: inherit; }
 
 @media (max-width: 760px) {
   .top-inner { grid-template-columns: 1fr; justify-items: center; }
